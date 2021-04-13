@@ -22,7 +22,6 @@ public class ServerWithoutSecurity {
 
 		try {
 			welcomeSocket = new ServerSocket(port);
-			System.out.println("test");
 			connectionSocket = welcomeSocket.accept();
 			fromClient = new DataInputStream(connectionSocket.getInputStream());
 			toClient = new DataOutputStream(connectionSocket.getOutputStream());
@@ -42,7 +41,7 @@ public class ServerWithoutSecurity {
 					// See: https://stackoverflow.com/questions/25897627/datainputstream-read-vs-datainputstream-readfully
 					fromClient.readFully(filename, 0, numBytes);
 
-					fileOutputStream = new FileOutputStream(new String(filename, 0, numBytes)+"a");
+					fileOutputStream = new FileOutputStream("recv" + new String(filename, 0, numBytes));
 					bufferedFileOutputStream = new BufferedOutputStream(fileOutputStream);
 
 				// If the packet is for transferring a chunk of the file
