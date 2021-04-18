@@ -55,7 +55,7 @@ public class ServerWithoutSecurity {
 					if (numBytes > 0)
 						bufferedFileOutputStream.write(block, 0, numBytes);
 
-					if (numBytes < 117) {
+					if (numBytes < 50000) {
 						System.out.println("Closing connection...");
 
 						if (bufferedFileOutputStream != null) bufferedFileOutputStream.close();

@@ -8,7 +8,7 @@ public class ClientWithoutSecurity {
 
 	public static void main(String[] args) {
 
-    	String filename = "testfiles\\100.txt";
+    	String filename = "testfiles\\100000.txt";
     	if (args.length > 0) filename = args[0];
 
     	String serverAddress = "localhost";
@@ -41,21 +41,22 @@ public class ClientWithoutSecurity {
 			System.out.println("Sending file...");
 
 			// Send the filename
+			String filename2 = "test";
 			toServer.writeInt(0);
-			toServer.writeInt(filename.getBytes().length);
-			toServer.write(filename.getBytes());
+			toServer.writeInt(filename2.getBytes().length);
+			toServer.write(filename2.getBytes());
 			//toServer.flush();
 
 			// Open the file
 			fileInputStream = new FileInputStream(filename);
 			bufferedFileInputStream = new BufferedInputStream(fileInputStream);
 
-	        byte [] fromFileBuffer = new byte[117];
+	        byte [] fromFileBuffer = new byte[50000];
 
 	        // Send the file
 	        for (boolean fileEnded = false; !fileEnded;) {
 				numBytes = bufferedFileInputStream.read(fromFileBuffer);
-				fileEnded = numBytes < 117;
+				fileEnded = numBytes < 50000;
 
 				toServer.writeInt(1);
 				toServer.writeInt(numBytes);
