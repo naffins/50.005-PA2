@@ -1,8 +1,11 @@
 import java.io.BufferedOutputStream;
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Arrays;
@@ -53,18 +56,17 @@ public class ConnectionUtils {
         int inBlockSize = isRSA? RSA_IN_BLOCK_SIZE : AES_IN_BLOCK_SIZE;
         int outBlockSize = isRSA? RSA_OUT_BLOCK_SIZE : RSA_OUT_BLOCK_SIZE;
 
-        int blockCount = input.length/inBlockSize;
-        if (input.length%inBlockSize!=0) blockCount+=1;
-        int messageSize = blockCount * outBlockSize;
-
         serverOut.writeInt(0);
 
-        for (int i=0;i<blockCount;i++) {
+        ByteArrayInputStream byteStream = new ByteArrayInputStream(input);
+
+        while(true) {
+            byte[] inputSegmentRead = new byte[inBlockSize];
+            int readByteCount = byteStream.read(inputSegmentRead);
+            if (readByteCount<=0) break;
             serverOut.writeInt(outBlockSize);
-            byte[] messagePortion = null;
-            if (i!=blockCount-1) messagePortion = Arrays.copyOfRange(input,i*inBlockSize,(i+1)*inBlockSize);
-            else messagePortion = Arrays.copyOfRange(input,i*inBlockSize,input.length);
-            byte[] encryptedPortion = performCrypto(cipher,messagePortion);
+            byte[] readBytes = Arrays.copyOfRange(inputSegmentRead,0,readByteCount);
+            byte[] encryptedPortion = performCrypto(cipher,readBytes);
             serverOut.write(encryptedPortion,0,encryptedPortion.length);
         }
 
@@ -90,6 +92,54 @@ public class ConnectionUtils {
         }
 
         return byteStream.toByteArray();
+
+    }
+
+
+    public static void encryptAndIterativeWriteFile(DataOutputStream serverOut,Cipher cipher,boolean isRSA,FileInputStream outFile) throws Exception {
+        
+        int inBlockSize = isRSA? RSA_IN_BLOCK_SIZE : AES_IN_BLOCK_SIZE;
+        int outBlockSize = isRSA? RSA_OUT_BLOCK_SIZE : RSA_OUT_BLOCK_SIZE;
+
+        serverOut.writeInt(1);
+
+        BufferedInputStream outFileBuffer = new BufferedInputStream(outFile);
+
+        while(true) {
+            byte[] inputSegmentRead = new byte[inBlockSize];
+            int readByteCount = outFileBuffer.read(inputSegmentRead);
+            if (readByteCount<=0) break;
+            serverOut.writeInt(outBlockSize);
+            byte[] readBytes = Arrays.copyOfRange(inputSegmentRead,0,readByteCount);
+            byte[] encryptedPortion = performCrypto(cipher,readBytes);
+            serverOut.write(encryptedPortion,0,encryptedPortion.length);
+        }
+
+        serverOut.writeInt(1);
+
+        return;
+        
+    }
+
+    public static void iterativeReadAndDecryptFile(DataInputStream serverIn,Cipher cipher,FileOutputStream inFile) throws Exception {
+        
+        int startSignal = serverIn.readInt();
+        if (startSignal!=1) throw new Exception();
+
+        BufferedOutputStream inFileBuffer = new BufferedOutputStream(inFile);
+        
+        while (true) {
+            int size = serverIn.readInt();
+            if (size==0) break;
+            byte[] input = new byte[size];
+            serverIn.readFully(input,0,input.length);
+            byte[] decryptedInput = performCrypto(cipher,input);
+            inFileBuffer.write(decryptedInput,0,decryptedInput.length);
+        }
+
+        inFileBuffer.close();
+
+        return;
 
     }
 

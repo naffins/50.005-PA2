@@ -1,11 +1,21 @@
+import java.net.ServerSocket;
+import java.net.Socket;
+
 import java.io.BufferedOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.FileOutputStream;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.io.BufferedReader;
+import java.io.FileReader;
+
 import java.util.Base64;
 import java.util.Random;
+
+import javax.crypto.*;
+import java.security.*;
+import java.security.spec.PKCS8EncodedKeySpec;
+
+import java.nio.file.*;
 
 public class Server {
 
@@ -16,12 +26,15 @@ public class Server {
     private static final String KEY_ERROR = "Error: unable to obtain/process server private key - is it available?\n";
     private static final String HANDSHAKE_ERROR = "Error: handshake failed! Aborting connection...\n";
     private static final String NEGOTIATION_ERROR = "Error: The negotiations were short. Aborting connection...\n";
+    private static final String SHELL_ERROR = "Error: The shell unexpectedly crashed. Aborting connection...\n";
     
     private static final String LISTEN_NOTIF = "Listening for connections...";
     private static final String EXIT_NOTIF = "Server exiting...";
     private static final String CONNECT_NOTIF = "Server connected to client.";
     private static final String HANDSHAKE_INFO = "Handshake success.";
     private static final String NEGOTIATION_INFO = "Negotiation success.";
+    private static final String DISCONNECT_INFO = "Disconnecting from client...\n";
+    private static final String SHUTDOWN_INFO = "Shutting down server...";
 
     private static final String AUTH_MESSAGE = "ACCESSING CSD SERVER - HANDSHAKE";
 
@@ -108,7 +121,7 @@ public class Server {
 
             // Handshake
             try {
-                boolean handshakeResult = performHandshake(serverIn,serverOut,serverPrivateRSAEncryptCipher);
+                boolean handshakeResult = performHandshake(serverOut,serverIn,serverPrivateRSAEncryptCipher);
                 if (!handshakeResult) throw new Exception();
                 System.out.println(HANDSHAKE_INFO);
             }
@@ -133,10 +146,18 @@ public class Server {
                 continue;
             }
 
-            // Pass to shell here. Shell should return boolean for exit flag
+            // Launch a shell, getting a boolean for whether the server is to exit upon connection termination
+            try {
+                exitFlag = ServerShell.launchShell(serverIn,serverOut,commCiphers,startingDirectory,cp);
+            }
+            catch (Exception e) {
+                abortConnection(serverOut,serverIn,currentConnection);
+                System.out.println(SHELL_ERROR);
+                continue;
+            }
 
-            System.out.println("Success. Exiting...");
-
+            // Close client connection
+            System.out.println(DISCONNECT_INFO);
             try {
                 serverOut.close();
                 serverOut = null;
@@ -148,16 +169,18 @@ public class Server {
             catch (Exception e) {
                 abortConnection(serverOut,serverIn,currentConnection);
             }
-
-            exitFlag = true;
-
-
         }
-        
 
+        // Shutdown server
+        System.out.println(SHUTDOWN_INFO);
+        try {
+            serverSocket.close();
+        }
+        catch (Exception e) {}
+        
     }
 
-    public static PrivateKey getServerPrivateKey(String filename) {
+    public static PrivateKey getServerPrivateKey(String filename) throws Exception {
         byte[] privateKeyBytes = Files.readAllBytes(Paths.get(filename));
         return ConnectionUtils.generatePrivateRSAKeyFromBytes(privateKeyBytes);
     }
@@ -189,7 +212,7 @@ public class Server {
 
         if (!in.equals("CONNECT")) return false;
 
-        byte[] authMessage = ConnectionUtils.performCrypto(serverPrivateRSAEncryptCipher,AUTH_MESSAGE.toBytes()));
+        byte[] authMessage = ConnectionUtils.performCrypto(serverPrivateRSAEncryptCipher,AUTH_MESSAGE.getBytes());
         ConnectionUtils.writeVariableBytes(serverOut,authMessage);
         in = serverIn.readLine();
         
@@ -224,7 +247,7 @@ public class Server {
         PrivateKey serverPrivateKey
     ) throws Exception {
         Cipher[] ciphers = new Cipher[2];
-        const String ack = "ACK-S3";
+        final String ack = "ACK-S3";
         switch (cp) {
             case 1:
                 PublicKey cpKey = getClientPublicKey(serverIn);
@@ -239,21 +262,20 @@ public class Server {
                 break;
             default:
                 throw new Exception();
-                break;
         }
-        ConnectionUtils.writeVariableBytes(serverOut,ConnectionUtils.performCrypto(ciphers[0],ack.toString()));
+        ConnectionUtils.writeVariableBytes(serverOut,ConnectionUtils.performCrypto(ciphers[0],ack.getBytes()));
         return ciphers;
     }
 
     public static void sendCertificate(DataOutputStream serverOut) throws Exception{
         String data = "";
         String line;
-        BufferedReader bufferedReader = new BufferedReader( new FileReader(fileName[i]));
+        BufferedReader bufferedReader = new BufferedReader( new FileReader(CERT_DIR));
         while((line=bufferedReader.readLine())!=null){
             if (data.equals("")) data = line;
             else data = data + "\n" + line;
         }
-        byte[] cert = data.toBytes();
+        byte[] cert = data.getBytes();
         ConnectionUtils.writeVariableBytes(serverOut,cert);
         return;
     }
