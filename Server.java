@@ -14,6 +14,7 @@ import java.util.Random;
 import javax.crypto.*;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 import java.nio.file.*;
 
@@ -141,6 +142,7 @@ public class Server {
                 System.out.println("Using communication protocol ID: " + cp);
             }
             catch (Exception e) {
+                e.printStackTrace();
                 abortConnection(serverOut,serverIn,currentConnection);
                 System.out.println(NEGOTIATION_ERROR);
                 continue;
@@ -207,34 +209,36 @@ public class Server {
         DataInputStream serverIn,
         Cipher serverPrivateRSAEncryptCipher
     ) throws Exception {
+
         String in = null;
-        in = serverIn.readLine();
+        in = new String(ConnectionUtils.readVariableBytes(serverIn));
 
         if (!in.equals("CONNECT")) return false;
 
         byte[] authMessage = ConnectionUtils.performCrypto(serverPrivateRSAEncryptCipher,AUTH_MESSAGE.getBytes());
         ConnectionUtils.writeVariableBytes(serverOut,authMessage);
-        in = serverIn.readLine();
-        
+
+        in = new String(ConnectionUtils.readVariableBytes(serverIn));
+
         if (!in.equals("ACK-C1")) return false;
 
         sendCertificate(serverOut);
-        in = serverIn.readLine();
+        in = new String(ConnectionUtils.readVariableBytes(serverIn));
         
         if (!in.equals("ACK-C2")) return false;
         
-        int nonce = new Random().nextInt(99999999);
-        serverOut.writeInt(nonce);
+        String nonce = Integer.toString(new Random().nextInt(99999999));
+        ConnectionUtils.writeVariableBytes(serverOut,nonce.getBytes());
         byte[] receivedNonceBytes = ConnectionUtils.readVariableBytes(serverIn);
 
-        serverOut.writeChars("ACK-S1");
+
+        ConnectionUtils.writeVariableBytes(serverOut,"ACK-S1".getBytes());
         PublicKey clientPublicKey = getClientPublicKey(serverIn);
         Cipher clientPublicRSADecryptCipher = ConnectionUtils.getRSACipher(clientPublicKey,false);
-        
 
         String receivedNonce = new String(ConnectionUtils.performCrypto(clientPublicRSADecryptCipher,receivedNonceBytes));
-        if (!receivedNonce.equals(Integer.toString(nonce))) return false;
-        serverOut.writeChars("ACK-S2");
+        if (!receivedNonce.equals(nonce)) return false;
+        ConnectionUtils.writeVariableBytes(serverOut,"ACK-S2".getBytes());
 
         return true;
     }
@@ -248,6 +252,7 @@ public class Server {
     ) throws Exception {
         Cipher[] ciphers = new Cipher[2];
         final String ack = "ACK-S3";
+
         switch (cp) {
             case 1:
                 PublicKey cpKey = getClientPublicKey(serverIn);
@@ -281,7 +286,7 @@ public class Server {
     }
 
     public static PublicKey getClientPublicKey(DataInputStream serverIn) throws Exception {
-        PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(ConnectionUtils.readVariableBytes(serverIn));
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(ConnectionUtils.readVariableBytes(serverIn));
 	    KeyFactory kf = KeyFactory.getInstance("RSA");
 	    return kf.generatePublic(spec);
     }
