@@ -98,6 +98,10 @@ public class ConnectionUtils {
 
     public static void encryptAndIterativeWriteFile(DataOutputStream serverOut,Cipher cipher,boolean isRSA,FileInputStream outFile) throws Exception {
         
+        System.out.println("Starting file upload...");
+        int originalSize = 0, encryptedSize = 0;
+        long startTime = System.currentTimeMillis();
+
         int inBlockSize = isRSA? RSA_IN_BLOCK_SIZE : AES_IN_BLOCK_SIZE;
         int outBlockSize = isRSA? RSA_OUT_BLOCK_SIZE : RSA_OUT_BLOCK_SIZE;
 
@@ -109,6 +113,8 @@ public class ConnectionUtils {
             byte[] inputSegmentRead = new byte[inBlockSize];
             int readByteCount = outFileBuffer.read(inputSegmentRead);
             if (readByteCount<=0) break;
+            originalSize += readByteCount;
+            encryptedSize += outBlockSize;
             serverOut.writeInt(outBlockSize);
             byte[] readBytes = Arrays.copyOfRange(inputSegmentRead,0,readByteCount);
             byte[] encryptedPortion = performCrypto(cipher,readBytes);
@@ -117,12 +123,26 @@ public class ConnectionUtils {
 
         serverOut.writeInt(1);
 
+        System.out.println(
+            "Uploaded "
+            + originalSize
+            + " bytes of original data as "
+            + encryptedSize
+            + " bytes of encrypted data in "
+            + (System.currentTimeMillis() - startTime)
+            + " ms"
+        );
+
         return;
         
     }
 
     public static void iterativeReadAndDecryptFile(DataInputStream serverIn,Cipher cipher,FileOutputStream inFile) throws Exception {
         
+        System.out.println("Starting file download...");
+        int originalSize = 0, encryptedSize = 0;
+        long startTime = System.currentTimeMillis();
+
         int startSignal = serverIn.readInt();
         if (startSignal!=1) throw new Exception();
 
@@ -131,13 +151,25 @@ public class ConnectionUtils {
         while (true) {
             int size = serverIn.readInt();
             if (size==0) break;
+            encryptedSize += size;
             byte[] input = new byte[size];
             serverIn.readFully(input,0,input.length);
             byte[] decryptedInput = performCrypto(cipher,input);
+            originalSize += decryptedInput.length;
             inFileBuffer.write(decryptedInput,0,decryptedInput.length);
         }
 
         inFileBuffer.close();
+
+        System.out.println(
+            "Downloaded "
+            + originalSize
+            + " bytes of original data as "
+            + encryptedSize
+            + " bytes of encrypted data in "
+            + (System.currentTimeMillis() - startTime)
+            + " ms"
+        );
 
         return;
 
