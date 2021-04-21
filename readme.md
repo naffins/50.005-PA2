@@ -1,16 +1,16 @@
 # 50.005 Programming Assignment 2 Submission
-## Students: Sean Gunawan (1004414), Claudia Chin (1004328)
+#### Members: Sean Gunawan (1004414), Claudia Chin (1004328)
 
-### How to start
+## How to start
 
-#### Prerequisites for both sides (must be done first):
+### Prerequisites for both sides (must be done first):
 
 Compile ConnectionUtils.java using
 
     javac ConnectionUtils.java
 
 
-#### Server:
+### Server:
 
 Compile both ServerShell.java and Server.java using
 
@@ -23,7 +23,7 @@ Next, run
 
 in the folder where Server.java is located. More options (eg. different port number) is currently supported by the server but not the client.
 
-#### Client:
+### Client:
 
 Compile Client.java using:
 
@@ -35,7 +35,7 @@ Next, run
 
 in the folder where Client.java is located.
 
-#### How to operate:
+## How to operate:
 
 No further steps are required for the server.
 
