@@ -142,7 +142,6 @@ public class Server {
                 System.out.println("Using communication protocol ID: " + cp);
             }
             catch (Exception e) {
-                e.printStackTrace();
                 abortConnection(serverOut,serverIn,currentConnection);
                 System.out.println(NEGOTIATION_ERROR);
                 continue;
