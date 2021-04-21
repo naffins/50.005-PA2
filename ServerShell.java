@@ -256,8 +256,9 @@ public class ServerShell {
         try {
             targetDir = startDir.resolve(targetDirectory).toRealPath();
         }
-        catch (InvalidPathException e) {
-            ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,commCiphers[0],CHANGECURRENTDIRECTORY_INVALID_PATH_ERROR.getBytes(),isRSA);
+        catch (Exception e) {
+            if (e instanceof InvalidPathException) ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,commCiphers[0],CHANGECURRENTDIRECTORY_INVALID_PATH_ERROR.getBytes(),isRSA);
+            else ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,commCiphers[0],CHANGECURRENTDIRECTORY_OTHER_ERROR.getBytes(),isRSA);
             return;
         }
 

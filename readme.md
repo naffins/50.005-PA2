@@ -52,4 +52,4 @@ Upon succesful negotiation, the client behaves as a shell where you can type in 
 - cwd \[remote directory\]: change server working directory
 - ls: list server working directory's contents
 - exit: disconnect from server
-- shutdown: disconnect from server and exit
+- shutdown: disconnect from server and shutdown server
