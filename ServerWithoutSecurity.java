@@ -41,7 +41,9 @@ public class ServerWithoutSecurity {
 					// See: https://stackoverflow.com/questions/25897627/datainputstream-read-vs-datainputstream-readfully
 					fromClient.readFully(filename, 0, numBytes);
 
-					fileOutputStream = new FileOutputStream("recv" + new String(filename, 0, numBytes));
+
+					fileOutputStream = new FileOutputStream(new String(filename, 0, numBytes) + "recv");
+
 					bufferedFileOutputStream = new BufferedOutputStream(fileOutputStream);
 
 				// If the packet is for transferring a chunk of the file
@@ -54,7 +56,7 @@ public class ServerWithoutSecurity {
 					if (numBytes > 0)
 						bufferedFileOutputStream.write(block, 0, numBytes);
 
-					if (numBytes < 117) {
+					if (numBytes < 50000) {
 						System.out.println("Closing connection...");
 
 						if (bufferedFileOutputStream != null) bufferedFileOutputStream.close();
