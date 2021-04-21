@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.security.Key;
@@ -17,9 +18,14 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.nio.file.*;
+
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
+import java.util.ArrayList;
 
 public class Client {
 
@@ -31,7 +37,10 @@ public class Client {
 	private static final String HELP_COMMAND = "help : Prints a list of avaiable commands. \n"
 			+ "put [local filename] [remote filename] : Sends file to server. \n"
 			+ "exit : Close socket immediately. No response will be returned. \n"
-			+ "shutdown : Server will return '0' and indicate that server is shutting down. \n";
+			+ "shutdown : Server will return '0' and indicate that server is shutting down. \n"
+			+ "ls : List current directory of server. \n"
+			+ "cd [directory] : Change server working directory. \n"
+			+ "get [remote filename] [local filename] : Downloads file from server. \n";
 
 	@SuppressWarnings("deprecation")
 	public static void main(String[] args) throws Exception {
@@ -108,49 +117,70 @@ public class Client {
 			boolean exitFlag = false;
 
 			while (!exitFlag) {
-				System.out.println("Enter command (enter 'help' to see list of commands): ");
+				System.out.print("Enter command (enter 'help' to see list of commands): ");
 				String command = inputScanner.nextLine();
 
+				String[] commandTokens = parseCommands(command);
+
+				if (commandTokens[0]==null) {
+					continue;
+				}
+
 				// help command
-				if (command.equals("help")) {
+				if (commandTokens[0].equals("help")) {
 					System.out.println(HELP_COMMAND);
 				} 
 				
 				// exit command
-				else if (command.equals("exit")) {
-					System.out.println("Exit command given. \n");
-					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, command.getBytes(), isRSA); // Send command
+				else if (commandTokens[0].equals("exit")) {
+					//System.out.println("Exit command given. \n");
+					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, commandTokens[0].getBytes(), isRSA); // Send command
 					exitFlag = true;
 				} 
-				
-				// commands with responses
-				else if (command.equals("shutdown") || command.split(" ")[0].equals("put")) {
-					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, command.getBytes(), isRSA); // Send command					
-					String response = new String(ConnectionUtils.iterativeReadAndDecryptMessage(fromServer, decryptCipher)); // Receive response
 
-					// if response = 0, continue
-					if (response.contains("0")) {
-						switch (command.split(" ")[0]) {
-						// shutdown command
-						case "shutdown":
-							System.out.println("Shutdown command given.");
-							System.out.println(response +"\n");
-							exitFlag = true;
-							break;
+				else if (commandTokens[0].equals("shutdown")) {
+					//System.out.println("Shutdown command given.");
+					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, commandTokens[0].getBytes(), isRSA);
+					getResponse(fromServer,decryptCipher);
+					exitFlag = true;
+				}
 
-						// put command
-						case "put":
-							System.out.println("Put command given.");
-							put(fromServer, toServer, encryptCipher, decryptCipher, isRSA, command.split(" ")[1]);
-							break;
-						}
+				else if (commandTokens[0].equals("put")) {
+					if (commandTokens[1]==null || commandTokens[2]==null) {
+						System.out.println("put [local filename] [remote filename] : Sends file to server.\n");
+						continue;
 					}
+
+					//System.out.println("Put command given.");
 					
-					// if response = 1, error and if response = 2, bad request
-					else if (response.contains("1") || response.contains("2")) {
-						System.out.println(response +"\n");
+					put(fromServer,toServer,encryptCipher,decryptCipher,isRSA,commandTokens);
+					System.out.print("\n");
+				}
+
+				else if (commandTokens[0].equals("ls")) {
+					//System.out.println("List current directory command given.");
+					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, commandTokens[0].getBytes(), isRSA);
+					getResponse(fromServer,decryptCipher);
+				}
+				
+				else if (commandTokens[0].equals("cd")) {
+					if (commandTokens[1]==null) {
+						System.out.println("cd [directory] : Change server working directory. \n");
+						continue;
 					}
-				} 
+					String transmitCommand = commandTokens[0] + " " + commandTokens[1];
+					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, transmitCommand.getBytes(), isRSA);
+					getResponse(fromServer,decryptCipher);
+				}
+
+				else if (commandTokens[0].equals("get")) {
+					if (commandTokens[1]==null || commandTokens[2]==null) {
+						System.out.println("get [local filename] [remote filename] : Downloads file from server. \n");
+						continue;
+					}
+					get(fromServer,toServer,encryptCipher,decryptCipher,isRSA,commandTokens);
+					System.out.print("\n");
+				}
 				
 				// invalid command entered
 				else {
@@ -170,11 +200,60 @@ public class Client {
 
 	}
 
-	private static void put(DataInputStream fromServer, DataOutputStream toServer, Cipher encryptCipher, Cipher decryptCipher, boolean isRSA, String fname) throws Exception {
+	private static void put(DataInputStream fromServer, DataOutputStream toServer, Cipher encryptCipher, Cipher decryptCipher, boolean isRSA, String[] commandTokens) throws Exception {
 		// Send file
-		System.out.println(fname);
-		ConnectionUtils.encryptAndIterativeWriteFile(toServer, encryptCipher, isRSA, new FileInputStream(fname)); 
+		FileInputStream outFile = null;
+		try {
+			outFile = new FileInputStream(commandTokens[1]);
+		}
+		catch (Exception e) {
+			if (e instanceof SecurityException) System.out.println("Error: client has no read permissions");
+			else System.out.println("Error: file doesn't exist");
+			return;
+		}
+		try {
+			String transmitCommand = commandTokens[0] + " " + commandTokens[2];
+			ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, transmitCommand.getBytes(), isRSA);
+			int response = getResponse(fromServer,decryptCipher);
+			if (response==0) ConnectionUtils.encryptAndIterativeWriteFile(toServer, encryptCipher, isRSA, outFile); 
+		}
+		catch (Exception e) {
+			outFile.close();
+			throw e;
+		}
+		outFile.close();
 		
+	}
+
+	public static void get(DataInputStream fromServer,DataOutputStream toServer,Cipher encryptCipher,Cipher decryptCipher,boolean isRSA,String[] commandTokens) throws Exception {
+		FileOutputStream inFile = null;
+		
+		try {
+			if (Files.exists(Paths.get(commandTokens[2]))) {
+				System.out.println("Error: file already exists");
+				return;
+			}
+			inFile = new FileOutputStream(commandTokens[2]);
+		}
+		catch (Exception e) {
+			if (e instanceof SecurityException) System.out.println("Error: client has no write permissions");
+			else if (e instanceof InvalidPathException) System.out.println("Error: invalid local filename");
+			else System.out.println("Error: local file cannot be created or is a directory");
+			return;
+		}
+		try {
+			String transmitCommand = commandTokens[0] + " " + commandTokens[1];
+			ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, transmitCommand.getBytes(), isRSA);
+			int response = getResponse(fromServer,decryptCipher);
+			if (response==0) ConnectionUtils.iterativeReadAndDecryptFile(fromServer, decryptCipher, inFile); 
+		}
+		catch (Exception e) {
+			inFile.close();
+			throw e;
+		}
+		inFile.close();
+
+
 	}
 
 	private static void abortConnection(DataInputStream fromServer, DataOutputStream toServer, Socket clientSocket)
@@ -254,7 +333,7 @@ public class Client {
 		String choice = "";
 		inputScanner = new Scanner(System.in);
 		while (!choice.equals("1") && !choice.equals("2")) {
-			System.out.println("Enter CP choice [1 or 2]: ");
+			System.out.print("Enter CP choice [1 or 2]: ");
 			choice = inputScanner.nextLine();
 		}
 		cp = Integer.parseInt(choice);
@@ -286,4 +365,49 @@ public class Client {
 		return true;
 	}
 
+	private static String[] parseCommands(String command) {
+		ArrayList<String> tokens = new ArrayList<String>();
+		String regex = "\"([^\"]*)\"|(\\S+)";
+        Matcher m = Pattern.compile(regex).matcher(command);
+        while (m.find()) {
+            if (m.group(1) != null) {
+                tokens.add(m.group(1));
+            } else {
+                tokens.add(m.group(2));
+        	}
+		}
+		String[] output = new String[3];
+		
+		switch(tokens.size()) {
+			case 0:
+				break;
+			case 1:
+				output[0] = tokens.get(0);
+				break;
+			case 2:
+				output[0] = tokens.get(0);
+				output[1] = tokens.get(1);
+				break;
+			case 3:
+				output[0] = tokens.get(0);
+				output[1] = tokens.get(1);
+				output[2] = tokens.get(2);
+				break;
+			default:
+				output[0] = tokens.get(0);
+				output[1] = tokens.get(1);
+				String[] lastToken = Arrays.copyOf(tokens.toArray(),tokens.toArray().length,String[].class);
+				lastToken = Arrays.copyOfRange(lastToken,2,lastToken.length);
+				output[2] = String.join(" ",lastToken);
+				break;
+		}
+		return output;
+	}
+
+	public static int getResponse(DataInputStream fromServer,Cipher decryptCipher) throws Exception {
+		String response = new String(ConnectionUtils.iterativeReadAndDecryptMessage(fromServer, decryptCipher));
+		int responseCode = Integer.parseInt(response.substring(0,1));
+		if (response.indexOf("\n")==1) System.out.println(response.substring(2));
+		return responseCode; 
+	}
 }

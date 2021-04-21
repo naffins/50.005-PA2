@@ -311,7 +311,13 @@ public class ServerShell {
             ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,commCiphers[0],SENDFILE_READ_ERROR.getBytes(),isRSA);
             return;
         }
-        ConnectionUtils.encryptAndIterativeWriteFile(serverOut,commCiphers[0],isRSA,outFile);
+        try {
+            ConnectionUtils.encryptAndIterativeWriteFile(serverOut,commCiphers[0],isRSA,outFile);
+        }
+        catch (Exception e) {
+            outFile.close();
+            throw e;
+        }
         outFile.close();
         return;
 
