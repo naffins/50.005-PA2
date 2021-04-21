@@ -1,3 +1,4 @@
+import java.io.InputStream;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 public class Client {
 
 	private static final String AUTH_MESSAGE = "ACCESSING CSD SERVER - HANDSHAKE";
+	private static final String CA_CERT = "./keys/cacertificate.crt";
 	private static Key serverPublicKey;
 	private static int cp;
 	private static Key sessionKey;
@@ -39,7 +41,8 @@ public class Client {
 			+ "exit : Close socket immediately. No response will be returned. \n"
 			+ "shutdown : Server will return '0' and indicate that server is shutting down. \n"
 			+ "ls : List current directory of server. \n"
-			+ "cd [directory] : Change server working directory. \n"
+			+ "pwd: Print current directory of server. \n"
+			+ "cwd [directory] : Change server working directory. \n"
 			+ "get [remote filename] [local filename] : Downloads file from server. \n";
 
 	@SuppressWarnings("deprecation")
@@ -162,15 +165,22 @@ public class Client {
 					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, commandTokens[0].getBytes(), isRSA);
 					getResponse(fromServer,decryptCipher);
 				}
+
+				else if (commandTokens[0].equals("pwd")) {
+					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, commandTokens[0].getBytes(), isRSA);
+					getResponse(fromServer,decryptCipher);
+					System.out.print("\n");
+				}
 				
-				else if (commandTokens[0].equals("cd")) {
+				else if (commandTokens[0].equals("cwd")) {
 					if (commandTokens[1]==null) {
-						System.out.println("cd [directory] : Change server working directory. \n");
+						System.out.println("cwd [directory] : Change server working directory. \n");
 						continue;
 					}
 					String transmitCommand = commandTokens[0] + " " + commandTokens[1];
 					ConnectionUtils.encryptAndIterativeWriteMessage(toServer, encryptCipher, transmitCommand.getBytes(), isRSA);
 					getResponse(fromServer,decryptCipher);
+					System.out.print("\n");
 				}
 
 				else if (commandTokens[0].equals("get")) {
@@ -281,9 +291,16 @@ public class Client {
 
 		// Extract server public key from certificate
 		CertificateFactory certFactory = CertificateFactory.getInstance("X.509");
-		X509Certificate certificate = (X509Certificate) certFactory
+		X509Certificate serverCertificate = (X509Certificate) certFactory
 				.generateCertificate(new ByteArrayInputStream(encryptedCertificate));
-		serverPublicKey = certificate.getPublicKey();
+		serverPublicKey = serverCertificate.getPublicKey();
+		serverCertificate.checkValidity();
+		
+		// Verify with CA cert
+		InputStream fis = new FileInputStream(CA_CERT);
+		X509Certificate CAcert =(X509Certificate)certFactory.generateCertificate(fis);
+		serverCertificate.verify(CAcert.getPublicKey());
+		fis.close();
 
 		// Decrypt fixed message with server public key and check if correct
 		Cipher rsaDecryptCipher = ConnectionUtils.getRSACipher(serverPublicKey, false);

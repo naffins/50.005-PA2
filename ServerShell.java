@@ -18,7 +18,8 @@ public class ServerShell {
         "shutdown",
         "put",
         "ls",
-        "cd",
+        "cwd",
+        "pwd",
         "get"
     };
     private static String SHUTDOWN_RESPONSE = "0\nServer shutting down...";
@@ -112,6 +113,9 @@ public class ServerShell {
                 changeCurrentDirectory(parsedCommand[1],serverOut,commCiphers,isRSA,currentDirectory);
                 break;
             case 5:
+                displayCurrentDirectory(serverOut,commCiphers,isRSA,currentDirectory[0]);
+                break;
+            case 6:
                 sendFile(parsedCommand[1],serverOut,commCiphers,isRSA,currentDirectory[0]);
                 break;
             default:
@@ -218,6 +222,17 @@ public class ServerShell {
         return;
     }
 
+    public static void displayCurrentDirectory(
+        DataOutputStream serverOut,
+        Cipher[] commCiphers,
+        boolean isRSA,
+        String currentDirectory
+    ) throws Exception {
+        String response = "0\n" + currentDirectory;
+        ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,commCiphers[0],response.getBytes(),isRSA);
+        return;
+    }
+
     private static String CHANGECURRENTDIRECTORY_INVALID_PATH_ERROR = "1\nError: target path/filename is invalid.";
     private static String CHANGECURRENTDIRECTORY_OTHER_ERROR = "1\nError: either the directory to move to doesn't exist, or the server has no permission to read it.";
 
@@ -239,7 +254,7 @@ public class ServerShell {
         Path startDir = Paths.get(currentDirectory[0]);
         Path targetDir = null;
         try {
-            targetDir = startDir.resolve(targetDirectory);
+            targetDir = startDir.resolve(targetDirectory).toRealPath();
         }
         catch (InvalidPathException e) {
             ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,commCiphers[0],CHANGECURRENTDIRECTORY_INVALID_PATH_ERROR.getBytes(),isRSA);
