@@ -21,7 +21,7 @@ Next, run
 
     java Server 4321
 
-in the folder where Server.java is located. More options (eg. different port number) is currently supported by the server but not the client.
+in the folder where Server.java is located. Usage of a different port number is currently supported by the server but not the client.
 
 ### Client:
 
