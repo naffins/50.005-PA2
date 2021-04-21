@@ -1,0 +1,27 @@
+cp 1
+Downloaded 4500 bytes of original data as 5760 bytes of encrypted data in 49 ms
+Downloaded 9000 bytes of original data as 11520 bytes of encrypted data in 108 ms
+Downloaded 22500 bytes of original data as 28800 bytes of encrypted data in 113 ms
+Downloaded 45000 bytes of original data as 57600 bytes of encrypted data in 212 ms
+Downloaded 225000 bytes of original data as 288000 bytes of encrypted data in 650 ms
+Downloaded 450000 bytes of original data as 576000 bytes of encrypted data in 1473 ms
+Downloaded 2250000 bytes of original data as 2880000 bytes of encrypted data in 6423 ms
+Downloaded 4500000 bytes of original data as 5760000 bytes of encrypted data in 12322 ms
+Downloaded 11958589 bytes of original data as 15307008 bytes of encrypted data in 33486 ms
+Downloaded 83548808 bytes of original data as 106942592 bytes of encrypted data in 269395 ms
+
+cp 2
+Downloaded 4500 bytes of original data as 4512 bytes of encrypted data in 3 ms
+Downloaded 9000 bytes of original data as 9008 bytes of encrypted data in 5 ms
+Downloaded 22500 bytes of original data as 22544 bytes of encrypted data in 77 ms
+Downloaded 45000 bytes of original data as 45072 bytes of encrypted data in 9 ms
+Downloaded 225000 bytes of original data as 225360 bytes of encrypted data in 18 ms
+Downloaded 450000 bytes of original data as 450720 bytes of encrypted data in 29 ms
+Downloaded 2250000 bytes of original data as 2253600 bytes of encrypted data in 141 ms
+Downloaded 4500000 bytes of original data as 4507200 bytes of encrypted data in 164 ms
+Downloaded 11958589 bytes of original data as 11977712 bytes of encrypted data in 268 ms
+Downloaded 83548808 bytes of original data as 83682480 bytes of encrypted data in 3662 ms
+Downloaded 129989019 bytes of original data as 130196992 bytes of encrypted data in 6976 ms
+Downloaded 306151583 bytes of original data as 306641424 bytes of encrypted data in 13974 ms
+Downloaded 537816040 bytes of original data as 538676544 bytes of encrypted data in 33164 ms
+Downloaded 1702984443 bytes of original data as 1705709216 bytes of encrypted data in 93827 ms
