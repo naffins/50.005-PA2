@@ -61,17 +61,16 @@ public class ServerShell {
         
         String[] returnValues = new String[2];
         int spaceIndex = command.indexOf(" ");
-        String commandFunction = null;
         if (spaceIndex==-1) {
-            commandFunction = command;
+            returnValues[0] = command;
             returnValues[1] = null;
         }
         else if (spaceIndex==command.length()-1) {
-            commandFunction = command.substring(0,command.length()-1);
+            returnValues[0] = command.substring(0,command.length()-1);
             returnValues[1] = null;
         }
         else {
-            commandFunction = command.substring(0,spaceIndex);
+            returnValues[0] = command.substring(0,spaceIndex);
             returnValues[1] = command.substring(spaceIndex+1);
         }
 

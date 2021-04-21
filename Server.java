@@ -137,7 +137,7 @@ public class Server {
             Cipher[] commCiphers = null;
             try {
                 cp = serverIn.readInt();
-                commCiphers = performNegotiation(cp,serverIn,serverOut,serverPrivateRSAEncryptCipher,serverPrivateKey);
+                commCiphers = performNegotiation(cp,serverIn,serverOut,serverPrivateKey);
                 System.out.println(NEGOTIATION_INFO);
                 System.out.println("Using communication protocol ID: " + cp);
             }
@@ -247,7 +247,6 @@ public class Server {
         int cp,
         DataInputStream serverIn,
         DataOutputStream serverOut,
-        Cipher serverPrivateRSAEncryptCipher,
         PrivateKey serverPrivateKey
     ) throws Exception {
         Cipher[] ciphers = new Cipher[2];
@@ -260,7 +259,7 @@ public class Server {
                 ciphers[1] = ConnectionUtils.getRSACipher(serverPrivateKey,false);
                 break;
             case 2:
-                byte[] encryptedSessionKey = ConnectionUtils.iterativeReadAndDecryptMessage(serverIn,serverPrivateRSAEncryptCipher);
+                byte[] encryptedSessionKey = ConnectionUtils.iterativeReadAndDecryptMessage(serverIn,ConnectionUtils.getRSACipher(serverPrivateKey,false));
                 SecretKey aesKey = ConnectionUtils.generateSecretAESKeyFromBytes(encryptedSessionKey);
                 ciphers[0] = ConnectionUtils.getAESCipher(aesKey,true);
                 ciphers[1] = ConnectionUtils.getAESCipher(aesKey,false);
@@ -268,7 +267,7 @@ public class Server {
             default:
                 throw new Exception();
         }
-        ConnectionUtils.writeVariableBytes(serverOut,ConnectionUtils.performCrypto(ciphers[0],ack.getBytes()));
+        ConnectionUtils.encryptAndIterativeWriteMessage(serverOut,ciphers[0], ack.getBytes(), cp==1);
         return ciphers;
     }
 

@@ -7,35 +7,24 @@ import java.io.DataOutputStream;
 import java.io.FileOutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.security.*;
+import javax.crypto.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Experiments {
-    /*public static void listFilesForFolder(final File folder) {
-    for (String a : folder.list(new FilenameFilter (){
-        public boolean accept(File dir, String name) {
-            
-            return new File(dir,name).isFile();
-            }
-        })) {
-            System.out.println(a);
-        }
-    }*/
 
     public static void main(String[] args) throws Exception {
-        System.out.println(args[0]);
-        if (args[0].equals("0")) {
-            ServerSocket s = new ServerSocket(54321);
-            Socket s1 = s.accept();
-            DataOutputStream d = new DataOutputStream(s1.getOutputStream());
-            d.writeChars("test");
-            while(true);
+        String text = "aasdfasdfasdfasdfa \"sdfasdfasdfa sdfa  sdfadf\"  sdfsdfsdfs";
+        String regex = "\"([^\"]*)\"|(\\S+)";
+        Matcher m = Pattern.compile(regex).matcher(text);
+        while (m.find()) {
+            if (m.group(1) != null) {
+                System.out.println(m.group(1));
+            } else {
+                System.out.println(m.group(2));
         }
-        else {
-            Socket clientSocket = new Socket("localhost", 54321);
-			DataInputStream fromServer = new DataInputStream(clientSocket.getInputStream());
-            System.out.println(fromServer.readLine());
-            fromServer.close();
-            clientSocket.close();
-        }
+    }
     }
 
 

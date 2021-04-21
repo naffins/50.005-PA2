@@ -11,15 +11,14 @@ import java.net.Socket;
 import java.util.Arrays;
 
 import javax.crypto.*;
+import javax.crypto.spec.SecretKeySpec;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 
 public class ConnectionUtils {
 
     private static int RSA_IN_BLOCK_SIZE = 100;
-    private static int RSA_OUT_BLOCK_SIZE = 1024;
-    private static int AES_IN_BLOCK_SIZE = 128;
-    private static int AES_OUT_BLOCK_SIZE = 128;
+    private static int AES_IN_BLOCK_SIZE = 10000;
 
     public static byte[] readVariableBytes(DataInputStream serverIn) throws Exception {
         int size = serverIn.readInt();
@@ -41,7 +40,7 @@ public class ConnectionUtils {
     }
 
     public static Cipher getAESCipher(Key key,boolean isEncryptCipher) throws Exception {
-        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS1Padding");
+        Cipher aesCipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
         if (isEncryptCipher) aesCipher.init(Cipher.ENCRYPT_MODE,key);
         else aesCipher.init(Cipher.DECRYPT_MODE,key);
         return aesCipher;
@@ -54,7 +53,6 @@ public class ConnectionUtils {
     public static void encryptAndIterativeWriteMessage(DataOutputStream serverOut,Cipher cipher,byte[] input, boolean isRSA) throws Exception {
         
         int inBlockSize = isRSA? RSA_IN_BLOCK_SIZE : AES_IN_BLOCK_SIZE;
-        int outBlockSize = isRSA? RSA_OUT_BLOCK_SIZE : RSA_OUT_BLOCK_SIZE;
 
         serverOut.writeInt(0);
 
@@ -64,9 +62,9 @@ public class ConnectionUtils {
             byte[] inputSegmentRead = new byte[inBlockSize];
             int readByteCount = byteStream.read(inputSegmentRead);
             if (readByteCount<=0) break;
-            serverOut.writeInt(outBlockSize);
             byte[] readBytes = Arrays.copyOfRange(inputSegmentRead,0,readByteCount);
             byte[] encryptedPortion = performCrypto(cipher,readBytes);
+            serverOut.writeInt(encryptedPortion.length);
             serverOut.write(encryptedPortion,0,encryptedPortion.length);
         }
 
@@ -103,25 +101,31 @@ public class ConnectionUtils {
         long startTime = System.currentTimeMillis();
 
         int inBlockSize = isRSA? RSA_IN_BLOCK_SIZE : AES_IN_BLOCK_SIZE;
-        int outBlockSize = isRSA? RSA_OUT_BLOCK_SIZE : RSA_OUT_BLOCK_SIZE;
 
         serverOut.writeInt(1);
 
         BufferedInputStream outFileBuffer = new BufferedInputStream(outFile);
 
-        while(true) {
-            byte[] inputSegmentRead = new byte[inBlockSize];
-            int readByteCount = outFileBuffer.read(inputSegmentRead);
-            if (readByteCount<=0) break;
-            originalSize += readByteCount;
-            encryptedSize += outBlockSize;
-            serverOut.writeInt(outBlockSize);
-            byte[] readBytes = Arrays.copyOfRange(inputSegmentRead,0,readByteCount);
-            byte[] encryptedPortion = performCrypto(cipher,readBytes);
-            serverOut.write(encryptedPortion,0,encryptedPortion.length);
+        try {
+            while(true) {
+                byte[] inputSegmentRead = new byte[inBlockSize];
+                int readByteCount = outFileBuffer.read(inputSegmentRead);
+                if (readByteCount<=0) break;
+                originalSize += readByteCount;
+                byte[] readBytes = Arrays.copyOfRange(inputSegmentRead,0,readByteCount);
+                byte[] encryptedPortion = performCrypto(cipher,readBytes);
+                serverOut.writeInt(encryptedPortion.length);
+                encryptedSize += encryptedPortion.length;
+                serverOut.write(encryptedPortion,0,encryptedPortion.length);
+            }
+            serverOut.writeInt(1);
         }
-
-        serverOut.writeInt(1);
+        catch (Exception e) {
+            outFileBuffer.close();
+            throw e;
+        }
+        
+        outFileBuffer.close();
 
         System.out.println(
             "Uploaded "
@@ -148,15 +152,21 @@ public class ConnectionUtils {
 
         BufferedOutputStream inFileBuffer = new BufferedOutputStream(inFile);
         
-        while (true) {
-            int size = serverIn.readInt();
-            if (size==0) break;
-            encryptedSize += size;
-            byte[] input = new byte[size];
-            serverIn.readFully(input,0,input.length);
-            byte[] decryptedInput = performCrypto(cipher,input);
-            originalSize += decryptedInput.length;
-            inFileBuffer.write(decryptedInput,0,decryptedInput.length);
+        try {
+            while (true) {
+                int size = serverIn.readInt();
+                if (size==1) break;
+                encryptedSize += size;
+                byte[] input = new byte[size];
+                serverIn.readFully(input,0,input.length);
+                byte[] decryptedInput = performCrypto(cipher,input);
+                originalSize += decryptedInput.length;
+                inFileBuffer.write(decryptedInput,0,decryptedInput.length);
+            }
+        }
+        catch (Exception e) {
+            inFileBuffer.close();
+            throw e;
         }
 
         inFileBuffer.close();
@@ -183,8 +193,7 @@ public class ConnectionUtils {
 
     public static SecretKey generateSecretAESKeyFromBytes(byte[] input) throws Exception {
         PKCS8EncodedKeySpec spec = new PKCS8EncodedKeySpec(input);
-        SecretKeyFactory kf = SecretKeyFactory.getInstance("AES");
-        return kf.generateSecret(spec);
+        return new SecretKeySpec(input,"AES");
     }
 
 
