@@ -1,5 +1,5 @@
 # 50.005 Programming Assignment 2 Submission
-#### Members: Sean Gunawan (1004414), Claudia Chin (1004328)
+#### Group members: Sean Gunawan (1004414), Claudia Chin (1004328)
 
 ## How to start
 
